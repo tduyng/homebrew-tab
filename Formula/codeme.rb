@@ -1,7 +1,7 @@
 class Codeme < Formula
   desc "Private coding activity tracker, backend for codeme.nvim"
   homepage "https://github.com/tduyng/codeme"
-  version "0.0.2"
+  version "0.0.5"
   license "MIT"
 
   on_macos do
