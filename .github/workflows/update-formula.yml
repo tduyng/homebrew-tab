@@ -22,7 +22,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout tap repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       
@@ -38,36 +38,34 @@ jobs:
           REPO="${{ github.event.inputs.repository }}"
           VERSION="${TAG#v}"
           
-          for os in darwin linux; do
-            for arch in arm64 amd64; do
-              URL="https://github.com/${REPO}/releases/download/${TAG}/${FORMULA}_${VERSION}_${os}_${arch}.tar.gz"
-              FILE="${FORMULA}_${VERSION}_${os}_${arch}.tar.gz"
-              curl -fsSL "${URL}" -o "${FILE}"
-              SHA=$(shasum -a 256 "${FILE}" | awk '{print $1}')
-              rm -f "${FILE}"
-              
-              if [ "$os" = "darwin" ] && [ "$arch" = "arm64" ]; then
-                SHA_DARWIN_ARM64=${SHA}
-              elif [ "$os" = "darwin" ] && [ "$arch" = "amd64" ]; then
-                SHA_DARWIN_AMD64=${SHA}
-              elif [ "$os" = "linux" ] && [ "$arch" = "arm64" ]; then
-                SHA_LINUX_ARM64=${SHA}
-              elif [ "$os" = "linux" ] && [ "$arch" = "amd64" ]; then
-                SHA_LINUX_AMD64=${SHA}
-              fi
-            done
-          done
+          # Download and calculate SHA256 for each platform
+          curl -fsSL "https://github.com/${REPO}/releases/download/${TAG}/${FORMULA}_${VERSION}_darwin_arm64.tar.gz" -o "darwin_arm64.tar.gz"
+          SHA_DARWIN_ARM64=$(shasum -a 256 "darwin_arm64.tar.gz" | awk '{print $1}')
+          rm -f "darwin_arm64.tar.gz"
           
-          # Update version (e.g., "0.0.2" -> "0.0.3")
+          curl -fsSL "https://github.com/${REPO}/releases/download/${TAG}/${FORMULA}_${VERSION}_darwin_amd64.tar.gz" -o "darwin_amd64.tar.gz"
+          SHA_DARWIN_AMD64=$(shasum -a 256 "darwin_amd64.tar.gz" | awk '{print $1}')
+          rm -f "darwin_amd64.tar.gz"
+          
+          curl -fsSL "https://github.com/${REPO}/releases/download/${TAG}/${FORMULA}_${VERSION}_linux_arm64.tar.gz" -o "linux_arm64.tar.gz"
+          SHA_LINUX_ARM64=$(shasum -a 256 "linux_arm64.tar.gz" | awk '{print $1}')
+          rm -f "linux_arm64.tar.gz"
+          
+          curl -fsSL "https://github.com/${REPO}/releases/download/${TAG}/${FORMULA}_${VERSION}_linux_amd64.tar.gz" -o "linux_amd64.tar.gz"
+          SHA_LINUX_AMD64=$(shasum -a 256 "linux_amd64.tar.gz" | awk '{print $1}')
+          rm -f "linux_amd64.tar.gz"
+          
+          # Update version
           sed -i '' "s/version \".*\"/version \"${VERSION}\"/" "Formula/${FORMULA}.rb"
           
-          # Update sha256 for each platform (macOS arm64, macOS amd64, Linux arm64, Linux amd64)
-          # 0,/pattern/ means replace only first match, then each subsequent sed replaces next sha256
-          sed -i '' "0,/sha256 \".*\"/s//sha256 \"${SHA_DARWIN_ARM64}\"/" "Formula/${FORMULA}.rb"
-          sed -i '' "0,/sha256 \".*\"/s//sha256 \"${SHA_DARWIN_AMD64}\"/" "Formula/${FORMULA}.rb"
-          sed -i '' "0,/sha256 \".*\"/s//sha256 \"${SHA_LINUX_ARM64}\"/" "Formula/${FORMULA}.rb"
-          sed -i '' "0,/sha256 \".*\"/s//sha256 \"${SHA_LINUX_AMD64}\"/" "Formula/${FORMULA}.rb"
+          # Update sha256 placeholders using Ruby
+          ruby -i -pe "
+            gsub('REPLACE_DARWIN_ARM64', '${SHA_DARWIN_ARM64}')
+            gsub('REPLACE_DARWIN_AMD64', '${SHA_DARWIN_AMD64}')
+            gsub('REPLACE_LINUX_ARM64', '${SHA_LINUX_ARM64}')
+            gsub('REPLACE_LINUX_AMD64', '${SHA_LINUX_AMD64}')
+          " "Formula/${FORMULA}.rb"
           
           git add "Formula/${FORMULA}.rb"
-          git commit -m "chore(${FORMULA}): update to ${TAG}" || exit 0
+          git commit -m "chore(${FORMULA}): update to ${TAG}"
           git push
