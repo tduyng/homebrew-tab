@@ -1,7 +1,7 @@
 class Gozzi < Formula
   desc "Simple static site generator written in Go"
   homepage "https://github.com/tduyng/gozzi"
-  version "0.0.39"
+  version "0.1.0"
   license "MIT"
 
   on_macos do
